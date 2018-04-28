@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/taluoo/app-archive/issues"
   },
-  "homepage": "https://github.com/taluoo/app-archive#readme"
+  "homepage": "https://github.com/taluoo/app-archive#readme",
+  "dependencies": {
+    "puppeteer": "^1.3.0"
+  }
 }
