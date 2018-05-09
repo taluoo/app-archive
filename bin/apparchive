@@ -1,0 +1,23 @@
+#!/usr/bin/env node
+const Path = require('path');
+const fs = require('fs');
+
+const config = require('../config/config'); // 读取配置
+const {getDownloadLinks, downloadAPP} = require('../index');
+
+let linksLogFile = Path.join(process.cwd(), 'links_log.txt');
+let repoDir = process.cwd(); // 当前工作目录作为仓库目录
+
+// 使用方式：
+// apparchive 获取下载链接，并写入 linksLogFile
+// apparchive -d 根据 linksLogFile 下载
+
+function run() {
+    if (process.argv[2] === '-d') {
+        downloadAPP(linksLogFile, repoDir);
+    } else {
+        getDownloadLinks(config, linksLogFile);
+    }
+}
+
+run();
