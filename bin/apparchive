@@ -1,22 +1,77 @@
 #!/usr/bin/env node
 const Path = require('path');
 const fs = require('fs');
+const Util = require('util');
+const renameFile = Util.promisify(fs.rename);
+
+const moment = require('moment');
+const Logger = require('../util/logger');
+
+const diff = require('../lib/diff_file');
 
 const config = require('../config/config'); // 读取配置
 const {getDownloadLinks, downloadAPP} = require('../index');
 
 let linksLogFile = Path.join(process.cwd(), 'links_log.txt');
+let preLinksLogFile = Path.join(process.cwd(), 'links_log_pre.txt'); // 上一次的
+let diffLinksLogFile = Path.join(process.cwd(), 'links_log_diff.txt'); // 最近两次的差异
 let repoDir = process.cwd(); // 当前工作目录作为仓库目录
+
+// 准备所需文件
+function prepareFile() {
+    // 准备一个空的 diffLinksLogFile
+    fs.writeFileSync(diffLinksLogFile, '', {flag: 'w'});
+    try {
+        // 如果 preLinksLogFile 不存在，则新建一个
+        fs.writeFileSync(preLinksLogFile, '', {flag: 'wx'});
+        // 如果 linksLogFile 不存在，则新建一个
+        fs.writeFileSync(linksLogFile, '', {flag: 'wx'});
+    } catch (e) {
+        if (e.code === 'EEXIST') {
+            // console.log(`文件已存在`)
+        } else {
+            console.log('prepareFile() err');
+            console.log(e);
+        }
+    }
+}
+
+async function backupFile() {
+    console.log('开始备份 links_log 文件');
+    // links_log_pre.txt ---> links_log.datetime.txt
+    let timeStr = moment().format('YYYY-MM-DD_HH');
+    await renameFile(preLinksLogFile, Path.join(process.cwd(), `links_log_${timeStr}.txt`));
+    // links_log.txt ---> links_log_pre.txt
+    await renameFile(linksLogFile, preLinksLogFile);
+    console.log('links_log 备份完成');
+}
+
+// Diff preLinksLogFile vs linksLogFile, 并把结果写入 diffLinksLogFile
+async function diffLinksLog() {
+    console.log('开始 Diff links_log 文件');
+    let newLinks = await diff(preLinksLogFile, linksLogFile);
+    let logger = new Logger(diffLinksLogFile, true);
+    newLinks.forEach(link => {
+        logger.log(link, true);
+    });
+    console.log('Diff 完成');
+}
 
 // 使用方式：
 // apparchive 获取下载链接，并写入 linksLogFile
-// apparchive -d 根据 linksLogFile 下载
+// apparchive -d 根据 diffLinksLogFile 进行增量更新
+// apparchive -f 根据 linksLogFile 强制更新所有链接
 
-function run() {
+async function run() {
     if (process.argv[2] === '-d') {
+        downloadAPP(diffLinksLogFile, repoDir);
+    } else if (process.argv[2] === '-f') {
         downloadAPP(linksLogFile, repoDir);
     } else {
-        getDownloadLinks(config, linksLogFile);
+        prepareFile();
+        await backupFile();
+        await getDownloadLinks(config, linksLogFile);
+        await diffLinksLog();
     }
 }
 
