@@ -47,5 +47,28 @@ module.exports = {
         platform: 'windows',
         folder: 'qq_tim',
         selector: '.down-ietm.windows .down-btn a',
+    },
+    'qq_weiyun_mac': {
+        url: 'https://www.weiyun.com/download.html',
+        des: 'QQ WeiYun',
+        platform: 'mac',
+        folder: 'qq_weiyun',
+        getLinkFromPage: async function (page) {
+            try {
+                await page.setRequestInterception(true);// 后面的 click 会导致下载，所以拦截一下
+                page.on('request', interceptedRequest => {
+                    if (interceptedRequest.url().endsWith('.dmg'))
+                        interceptedRequest.abort();
+                    else
+                        interceptedRequest.continue();
+                });
+                await page.click('a[data-action=downloadClient]'); // 根据页面逻辑，点击连接之后，#downloadIframe 的 src 会改为下载链接
+                let iframe = await page.$('#downloadIframe');
+                let src = await iframe.getProperty('src');
+                return await src.jsonValue();
+            } catch (e) {
+                throw new Error(`qq_weiyun_mac 下载链接提取失败`);
+            }
+        }
     }
 };
