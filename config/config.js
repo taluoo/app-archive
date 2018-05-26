@@ -95,5 +95,35 @@ module.exports = {
                 throw new Error(`qq_weiyun_sync_mac 下载链接提取失败`);
             }
         }
+    },
+    'qq_mail_android': {
+        url: 'http://app.mail.qq.com/',
+        des: 'QQ 邮箱',
+        platform: 'android',
+        folder: 'qq_mail',
+        getLinkFromPage: async function (page) {
+            return new Promise(function (resolve, reject) {
+                return (async function () {
+                    try {
+                        await page.setRequestInterception(true);// 后面的 click 会导致下载，所以拦截一下
+                        page.on('request', interceptedRequest => {
+                            let reqUrl = interceptedRequest.url();
+                            if (reqUrl.endsWith('.apk')) {
+                                interceptedRequest.abort();
+                                resolve(reqUrl);
+                            }
+                            else {
+                                interceptedRequest.continue();
+                            }
+                        });
+                        await page.click('#nav_android'); // 需要先点一下导航条，让 .download_android 显示出来，否则报错 Error: Node is either not visible or not an HTMLElement
+                        await page.click('.download_android');
+                    } catch (e) {
+                        console.log(e);
+                        reject(`qq_mail_android 下载链接提取失败`);
+                    }
+                })();
+            })
+        }
     }
 };
